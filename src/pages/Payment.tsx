@@ -1,24 +1,46 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useOrders } from "@/contexts/OrderContext";
 import { PaymentScreen } from "@/components/cashier/PaymentScreen";
 import { Badge } from "@/components/ui/badge";
 import { toast } from "sonner";
 
 export default function Payment() {
-  const { orders, completePayment } = useOrders();
-  const [selectedOrderId, setSelectedOrderId] = useState<string | null>(null);
+  const { orders, completePayment, refreshOrders } = useOrders();
+  const [selectedOrderId, setSelectedOrderId] = useState<number | null>(null);
 
-  const pendingPaymentOrders = orders.filter((order) => order.status === "processing");
-  const selectedOrder = orders.find((order) => order.id === selectedOrderId);
+  // ===============================================
+  // 1. AUTO REFRESH KHI MỞ TRANG PAYMENT
+  // ===============================================
+  useEffect(() => {
+    refreshOrders();
+  }, []);
 
-  const handleCompletePayment = (paymentMethod: any, customerPaid: number) => {
+  // ===============================================
+  // 2. LỌC ĐƠN HOÀN THÀNH TỪ BARISTA -> STATUS = "done"
+  // ===============================================
+  const pendingPaymentOrders = orders.filter(
+    (order) => order.status?.toLowerCase() === "done"
+  );
+
+  // ===============================================
+  // 3. LẤY ĐƠN ĐANG CHỌN
+  // ===============================================
+  const selectedOrder = orders.find((o) => o.id === selectedOrderId);
+
+  // ===============================================
+  // 4. HANDLE THANH TOÁN
+  // ===============================================
+  const handleCompletePayment = async (paymentMethod: any, customerPaid: number) => {
     if (selectedOrderId) {
-      completePayment(selectedOrderId, paymentMethod, customerPaid);
-      setSelectedOrderId(null);
+      await completePayment(selectedOrderId, paymentMethod, customerPaid);
       toast.success("Thanh toán thành công!");
+      setSelectedOrderId(null);
     }
   };
 
+  // ===============================================
+  // 5. NẾU ĐANG Ở MÀN PAYMENTS
+  // ===============================================
   if (selectedOrder) {
     return (
       <div className="p-6">
@@ -31,6 +53,9 @@ export default function Payment() {
     );
   }
 
+  // ===============================================
+  // 6. TRANG CHỜ THANH TOÁN
+  // ===============================================
   return (
     <div className="p-6">
       <div className="mb-6">
@@ -47,19 +72,26 @@ export default function Payment() {
           >
             <div className="flex items-center justify-between mb-3">
               <Badge className="bg-warning text-white">Chờ thanh toán</Badge>
-              <span className="text-accent font-semibold">#{order.orderNumber}</span>
+              <span className="text-accent font-semibold">
+                #{order.orderNumber || order.id}
+              </span>
             </div>
+
+            {/* ITEMS */}
             <div className="space-y-1 mb-3">
-              {order.items.map((item, idx) => (
+              {(order.Items || order.items || []).map((item: any, idx: number) => (
                 <p key={idx} className="text-sm">
-                  {item.name} ({item.size})
+                  {item.ProductName || item.name}{" "}
+                  {item.Size || item.size ? `(${item.Size || item.size})` : ""}
                 </p>
               ))}
             </div>
+
             <div className="flex justify-between items-center pt-3 border-t border-border">
               <span className="text-muted-foreground text-sm">Tổng:</span>
               <span className="text-accent text-lg font-bold">
-                {order.total.toLocaleString("vi-VN")}₫
+                {order.total?.toLocaleString("vi-VN") || 
+                 order.Total?.toLocaleString("vi-VN")}₫
               </span>
             </div>
           </button>
